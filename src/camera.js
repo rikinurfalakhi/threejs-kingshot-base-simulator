@@ -1,12 +1,24 @@
 import * as THREE from 'three';
 export function createCamera(gameWindow) {
+
+    const DEG2RAD = Math.PI /180
+
     const LEFT_MOUSE_BUTTON = 0;
-    const RIGHT_MOUSE_BUTTON = 1;
-    const MIDDLE_MOUSE_BUTTON = 2;
+    const MIDDLE_MOUSE_BUTTON = 1;
+    const RIGHT_MOUSE_BUTTON = 2;
+
     const MIN_CAMERA_RADIUS = 2
     const MAX_CAMERA_RADIUS = 10
+    const ROTATION_SENSITIFITY = .5
+    const ZOOM_SENSITIFITY = .02
+    const PAN_SENSITIFITY = -.01
+    const MIN_CAMERA_ELEVATION = 30
+    const MAX_CAMERA_ELEVATION = 90
+
+    const Y_AXIS = new THREE.Vector3(0,1,0)
 
     const camera = new THREE.PerspectiveCamera(75, gameWindow.clientWidth / gameWindow.offsetHeight, 0.1, 1000);
+    let cameraOrigin = new THREE.Vector3()
     let cameraRadius = 5
     let cameraAzimuth = 0
     let cameraElevation = 0
@@ -48,7 +60,7 @@ export function createCamera(gameWindow) {
             isMiddleMouseDown = false
             console.log('middle mouse up')
         }
-         if (event.button === RIGHT_MOUSE_BUTTON) {
+        if (event.button === RIGHT_MOUSE_BUTTON) {
             isRightMouseDown = false
             console.log('right mouse up')
         }
@@ -59,34 +71,40 @@ export function createCamera(gameWindow) {
         const deltaY = (e.clientY - prevMouseY)
         // handles rotation of the camera
         if (isLeftMouseDown) {
-            cameraAzimuth += -(deltaX * .5)
-            cameraElevation += (deltaY * .5)
-            cameraElevation = Math.min(90, Math.max(0, cameraElevation))
+            cameraAzimuth += -(deltaX * ROTATION_SENSITIFITY)
+            cameraElevation += (deltaY * ROTATION_SENSITIFITY)
+            cameraElevation = Math.min(MAX_CAMERA_ELEVATION, Math.max(MIN_CAMERA_ELEVATION, cameraElevation))
             updateCameraPosition()
         }
-        // 18:30
-        // handles the panning of the camera
+        // handles the zoom of the camera
         if (isRightMouseDown) {
-            camera.position.z += deltaY * .05
+            camera.position.z += deltaY * ZOOM_SENSITIFITY
             cameraRadius += ((e.clientY - prevMouseY) * .02)
             cameraRadius = Math.min(MAX_CAMERA_RADIUS, Math.max(MIN_CAMERA_RADIUS, cameraRadius))
             updateCameraPosition()
         }
-        // handles the zoom of the camera
+        // 18:30
+        // handles the panning of the camera
         if (isMiddleMouseDown) {
-            camera.position.x += -(e.clientX - prevMouseX) * .05
-            camera.position.y += (e.clientY - prevMouseY) * .05
+            console.log('middle mouse move');
+            
+            const forward = new THREE.Vector3(0,0,1).applyAxisAngle(Y_AXIS, cameraAzimuth * Math.PI /180)
+            const left = new THREE.Vector3(1,0,0).applyAxisAngle(Y_AXIS, cameraAzimuth * Math.PI /180)
+            cameraOrigin.add(forward.multiplyScalar(-deltaY * PAN_SENSITIFITY))
+            cameraOrigin.add(left.multiplyScalar(-deltaX * PAN_SENSITIFITY))
             updateCameraPosition()
         }
+
         prevMouseX = e.clientX
         prevMouseY = e.clientY
     }
 
     function updateCameraPosition() {
-        camera.position.x = cameraRadius * Math.sin(cameraAzimuth * Math.PI / 180) * Math.cos(cameraElevation * Math.PI / 180)
-        camera.position.y = cameraRadius * Math.sin(cameraElevation * Math.PI / 180)
-        camera.position.z = cameraRadius * Math.cos(cameraAzimuth * Math.PI / 180) * Math.cos(cameraElevation * Math.PI / 180)
-        camera.lookAt(0, 0, 0)
+        camera.position.x = cameraRadius * Math.sin(cameraAzimuth * DEG2RAD) * Math.cos(cameraElevation * Math.PI / 180)
+        camera.position.y = cameraRadius * Math.sin(cameraElevation * DEG2RAD)
+        camera.position.z = cameraRadius * Math.cos(cameraAzimuth * DEG2RAD) * Math.cos(cameraElevation * Math.PI / 180)
+        camera.position.add(cameraOrigin)
+        camera.lookAt(cameraOrigin)
         camera.updateMatrix()
     }
     function resetCamera() {
